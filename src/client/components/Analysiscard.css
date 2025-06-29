@@ -1,0 +1,34 @@
+.result-card {
+  background-color: #cbe5f6;
+  padding: 32px 24px;
+  border-radius: 16px;
+  width: 360px;
+  margin: 40px auto;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  font-family: 'Noto Sans KR', sans-serif;
+  text-align: center;
+}
+
+.result-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.result-description {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+  white-space: pre-line;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.result-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #222;
+  border-top: 1px solid #aaa;
+  padding-top: 20px;
+}

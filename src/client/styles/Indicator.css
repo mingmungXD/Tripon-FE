@@ -1,0 +1,18 @@
+.indicator-container {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px;
+}
+
+.indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #ccc;
+  transition: background-color 0.3s;
+}
+
+.indicator-dot.active {
+  background-color: white;
+}

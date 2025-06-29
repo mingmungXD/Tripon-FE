@@ -1,0 +1,41 @@
+.loading-container {
+  height: 100vh;
+  background: linear-gradient(to bottom, #d2f0fd, #ffffff);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.airplane-wrapper {
+  position: absolute;
+  top: 30%;
+  left: 10%;
+  display: flex;
+  align-items: center;
+}
+
+.airplane-icon {
+  width: 40px;
+  position: absolute;
+}
+
+.airplane-path {
+  position: absolute;
+  height: 2px;
+  border-bottom: 2px dotted #1ea7fd;
+  width: 0;
+  top: 20px;
+  left: 0;
+}
+
+.logo-text {
+  margin-top: 150px;
+  color: #0077b6;
+  font-size: 80px;
+}
+
+.loading-text {
+  color: #333;
+}
