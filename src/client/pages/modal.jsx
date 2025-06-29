@@ -68,7 +68,7 @@ const ImageCountModal = ({ onClose }) => {
   };
 
   const handleImageCount = (count) => {
-    navigate('/collage', { state: { imageCount: count } });
+    navigate('/create', { state: { imageCount: count } });
   };
 
   return (

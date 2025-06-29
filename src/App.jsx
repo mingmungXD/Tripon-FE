@@ -8,6 +8,7 @@ import Loading from './client/pages/Loading';
 import LocationAnalysis from './client/pages/LocationAnalysis';
 import Collage from './client/pages/Collage';
 import Feedback from './client/pages/Feedback';
+import Create from './client/pages/Create';
 
 const App = () => {
   return (
@@ -16,6 +17,7 @@ const App = () => {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/create" element={<Create />} />
           <Route path="/resize" element={<Resize />} />
           <Route path="/loading" element={<Loading />} />
           <Route path="/analysis" element={<LocationAnalysis />} />

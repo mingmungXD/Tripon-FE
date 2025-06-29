@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import ImageCountModal from './modal';
 
 const Feedback = () => {
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ const Feedback = () => {
 
   const handleContinue = () => {
     if (selectedLocation) {
-      navigate('/collage', { state: { location: selectedLocation } });
+      navigate('/create', { state: { location: selectedLocation } });
     }
   };
 

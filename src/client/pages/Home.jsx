@@ -1,13 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import LocationAnalysis from './LocationAnalysis';
 
-const TripOnPage = () => {
+const API_CONFIG = {
+  MODEL: "gpt-4o",
+  MAX_TOKENS: 300,
+  ENDPOINT: 'https://api.openai.com/v1/chat/completions'
+};
+
+const ERROR_MESSAGES = {
+  API_KEY_MISSING: '현재 서비스 준비중입니다',
+  API_KEY_INVALID: '현재 서비스 준비중입니다',
+  API_RATE_LIMIT: '현재 서비스 준비중입니다',
+  API_ERROR: '현재 서비스 준비중입니다',
+  PARSE_ERROR: '현재 서비스 준비중입니다',
+  INVALID_RESPONSE: '현재 서비스 준비중입니다',
+  NO_FILE: '사진을 먼저 선택해주세요.'
+};
+
+const compressImage = (file, maxWidth = 800, quality = 0.8) => {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+      canvas.width = img.width * ratio;
+      canvas.height = img.height * ratio;
+      
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(resolve, 'image/jpeg', quality);
+    };
+    
+    img.src = URL.createObjectURL(file);
+  });
+};
+
+const convertToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+const analyzeImageWithAPI = async (base64Image) => {
+  const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('API_KEY_MISSING');
+  }
+
+  const requestBody = {
+    model: API_CONFIG.MODEL,
+    messages: [{
+      role: "user",
+      content: [{
+        type: "text",
+        text: "이 여행 사진을 보고 촬영된 국가와 도시를 추론하고 한글로 주세요. 응답은 반드시 다음 JSON 형식으로만 해주세요. 마크다운이나 다른 형식은 사용하지 마세요: {\"country\": \"국가명\", \"city\": \"도시명\", \"confidence\": \"신뢰도(1-10)\"}"
+      }, {
+        type: "image_url",
+        image_url: { url: base64Image }
+      }]
+    }],
+    max_tokens: API_CONFIG.MAX_TOKENS
+  };
+
+  const response = await fetch(API_CONFIG.ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const status = response.status;
+    if (status === 401) throw new Error('API_KEY_INVALID');
+    if (status === 429) throw new Error('API_RATE_LIMIT');
+    throw new Error('API_ERROR');
+  }
+
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+  
+  try {
+    const result = JSON.parse(content);
+    if (!result.country || !result.city) {
+      throw new Error('INVALID_RESPONSE');
+    }
+    return result;
+  } catch {
+    throw new Error('PARSE_ERROR');
+  }
+};
+
+const Home = () => {
   const [files, setFiles] = useState([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [error, setError] = useState(null);
 
-  const styles = {
+  const styles = useMemo(() => ({
     container: {
       display: 'flex',
       flexDirection: 'column',
@@ -22,11 +118,6 @@ const TripOnPage = () => {
       textAlign: 'center',
       marginBottom: '2rem',
       width: '100%'
-    },
-    logo: {
-      width: '150px',
-      height: 'auto',
-      marginBottom: '1rem'
     },
     titleHighlight: {
       color: '#888',
@@ -51,7 +142,8 @@ const TripOnPage = () => {
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+      cursor: files.length === 0 ? 'pointer' : 'default'
     },
     uploadPlaceholder: {
       display: 'flex',
@@ -59,8 +151,7 @@ const TripOnPage = () => {
       alignItems: 'center',
       justifyContent: 'center',
       width: '100%',
-      height: '100%',
-      cursor: 'pointer'
+      height: '100%'
     },
     plusIcon: {
       width: '5rem',
@@ -82,7 +173,7 @@ const TripOnPage = () => {
     uploadLimit: {
       color: 'rgba(255, 255, 255, 0.8)',
       fontSize: '0.9rem',
-      margin:'0'
+      margin: '0'
     },
     previewContainer: {
       width: '100%',
@@ -109,16 +200,15 @@ const TripOnPage = () => {
     },
     primaryButton: {
       flex: '1',
-      backgroundColor: '#039BE5',
+      backgroundColor: isAnalyzing ? '#ccc' : '#039BE5',
       color: 'white',
       border: 'none',
       borderRadius: '8px',
       padding: '1rem',
       fontSize: '1rem',
       fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-      opacity: isAnalyzing ? 0.7 : 1
+      cursor: isAnalyzing || files.length === 0 ? 'not-allowed' : 'pointer',
+      transition: 'background-color 0.2s'
     },
     secondaryButton: {
       flex: '1',
@@ -129,7 +219,7 @@ const TripOnPage = () => {
       padding: '1rem',
       fontSize: '1rem',
       fontWeight: '500',
-      cursor: 'pointer',
+      cursor: isAnalyzing ? 'not-allowed' : 'pointer',
       transition: 'background-color 0.2s'
     },
     loadingText: {
@@ -157,164 +247,32 @@ const TripOnPage = () => {
       borderRadius: '8px',
       border: '1px solid #e2e8f0'
     }
-  };
+  }), [isAnalyzing, files.length]);
 
-  const convertToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = error => reject(error);
-    });
-  };
-
-  const getPresignedUrl = async (filename) => {
-  const response = await fetch(
-    `https://m177rqs76i.execute-api.ap-northeast-2.amazonaws.com/dev/api/presign?filename=${encodeURIComponent(filename)}`
-  );
-  const data = await response.json();
-  return data.url;
-};
-
-const uploadToS3 = async (file) => {
-  const url = await getPresignedUrl(file.name);
-  await fetch(url, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': file.type
-    },
-    body: file
-  });
-  return url.split('?')[0]; // S3 최종 URL 반환
-};
-
-  const analyzeImageWithChatGPT = async (base64Image) => {
-    const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
-    
-    console.log('API Key 확인:', apiKey ? '있음' : '없음');
-    console.log('API Key 길이:', apiKey ? apiKey.length : 0);
-    console.log('API Key 앞부분:', apiKey ? apiKey.substring(0, 7) + '...' : '없음');
-    
-    if (!apiKey) {
-      console.error('API Key가 설정되지 않았습니다');
-      throw new Error('API_KEY_MISSING');
-    }
-
-    try {
-      
-      const requestBody = {
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "이 여행 사진을 보고 촬영된 국가와 도시를 추론하고 한글로 주세요. 응답은 반드시 다음 JSON 형식으로만 해주세요. 마크다운이나 다른 형식은 사용하지 마세요: {\"country\": \"국가명\", \"city\": \"도시명\", \"confidence\": \"신뢰도(1-10)\"}"
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: base64Image
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 300
-      };
-      
-
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      console.log('API 요청 내용:', requestBody);
-      console.log('API 응답 상태:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API 응답 에러:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorBody: errorText
-        });
-        
-        if (response.status === 401) {
-          console.error('인증 실패: API Key가 잘못되었습니다');
-          throw new Error('API_KEY_INVALID');
-        } else if (response.status === 429) {
-          console.error('요청 한도 초과');
-          throw new Error('API_RATE_LIMIT');
-        } else {
-          console.error('기타 API 오류:', response.status);
-          throw new Error('API_ERROR');
-        }
-      }
-
-      const data = await response.json();
-      console.log('✅ API 응답 성공:', data);
-      
-      const content = data.choices[0].message.content;
-      
-      try {
-        const result = JSON.parse(content);
-        
-        if (!result.country || !result.city) {
-          throw new Error('INVALID_RESPONSE');
-        }
-        
-        return result;
-      } catch (parseError) {
-        console.error('JSON 파싱 실패:', parseError);
-        console.error('원본 응답:', content);
-        throw new Error('PARSE_ERROR');
-      }
-    } catch (error) {
-      console.error('ChatGPT API 호출 중 오류:', error);
-      console.error('오류 스택:', error.stack);
-      throw error;
-    }
-  };
-
-  const handleAddPhoto = () => {
+  const handleAddPhoto = useCallback(() => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
     fileInput.multiple = false;
-    fileInput.onchange = async (e) => {
-  if (e.target.files.length > 0) {
-    const selectedFile = e.target.files[0];
-    setFiles([selectedFile]);
-    setAnalysisResult(null);
-    setError(null);
-
-    try {
-      const uploadedUrl = await uploadToS3(selectedFile);
-      console.log("✅ S3 업로드 완료:", uploadedUrl);
-    } catch (err) {
-      console.error("❌ S3 업로드 실패:", err);
-      setError("이미지 업로드에 실패했습니다");
-    }
-  }
-};
+    fileInput.onchange = (e) => {
+      if (e.target.files.length > 0) {
+        setFiles(Array.from(e.target.files));
+        setAnalysisResult(null);
+        setError(null);
+      }
+    };
     fileInput.click();
-  };
+  }, []);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setFiles([]);
     setAnalysisResult(null);
     setError(null);
-  };
+  }, []);
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     if (files.length === 0) {
-      setError('사진을 먼저 선택해주세요.');
+      setError(ERROR_MESSAGES.NO_FILE);
       return;
     }
 
@@ -322,33 +280,22 @@ const uploadToS3 = async (file) => {
     setError(null);
 
     try {
-      const base64Image = await convertToBase64(files[0]);
+      const compressedFile = await compressImage(files[0]);
+      const base64Image = await convertToBase64(compressedFile);
       
-      const result = await analyzeImageWithChatGPT(base64Image);
+      const result = await analyzeImageWithAPI(base64Image);
       
       setAnalysisResult({
         ...result,
         imageUrl: URL.createObjectURL(files[0])
       });
     } catch (error) {
-      console.error('💥 분석 중 오류 발생:', error);
-      console.error('오류 메시지:', error.message);
-      
-      if (error.message === 'API_KEY_MISSING' || 
-          error.message === 'API_KEY_INVALID' || 
-          error.message === 'API_RATE_LIMIT' || 
-          error.message === 'API_ERROR' || 
-          error.message === 'PARSE_ERROR' || 
-          error.message === 'INVALID_RESPONSE') {
-        setError('현재 서비스 준비중입니다');
-      } else {
-        setError('현재 서비스 준비중입니다');
-      }
+      const errorMessage = ERROR_MESSAGES[error.message] || ERROR_MESSAGES.API_ERROR;
+      setError(errorMessage);
     } finally {
-      console.log('🏁 분석 종료');
       setIsAnalyzing(false);
     }
-  };
+  }, [files]);
 
   if (analysisResult) {
     return (
@@ -367,16 +314,20 @@ const uploadToS3 = async (file) => {
       </div>
       
       <div style={styles.uploadContainer}>
-        <div style={styles.uploadCard}>
+        <div style={styles.uploadCard} onClick={files.length === 0 ? handleAddPhoto : undefined}>
           {files.length === 0 ? (
-            <div style={styles.uploadPlaceholder} onClick={handleAddPhoto}>
+            <div style={styles.uploadPlaceholder}>
               <div style={styles.plusIcon}>+</div>
               <p style={styles.uploadText}>여행사진을 1장 선택해주세요</p>
               <p style={styles.uploadLimit}>(3:4 권장)</p>
             </div>
           ) : (
             <div style={styles.previewContainer}>
-              <img src={URL.createObjectURL(files[0])} alt="Preview" style={styles.imagePreview} />
+              <img 
+                src={URL.createObjectURL(files[0])} 
+                alt="Preview" 
+                style={styles.imagePreview} 
+              />
             </div>
           )}
         </div>
@@ -391,7 +342,7 @@ const uploadToS3 = async (file) => {
       </div>
       
       {error && (
-        <div style={error === '현재 서비스 준비중입니다' ? styles.serviceUnavailableText : styles.errorText}>
+        <div style={error === ERROR_MESSAGES.API_ERROR ? styles.serviceUnavailableText : styles.errorText}>
           {error}
         </div>
       )}
@@ -422,4 +373,4 @@ const uploadToS3 = async (file) => {
   );
 };
 
-export default TripOnPage;
+export default Home;
