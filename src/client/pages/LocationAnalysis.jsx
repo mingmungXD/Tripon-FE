@@ -5,6 +5,7 @@ import ImageCountModal from './modal';
 const LocationAnalysis = ({ analysisResult, onBack }) => {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
+   const firstImageFile = analysisResult.firstImageFile;
 
   const styles = {
     container: {
@@ -114,7 +115,6 @@ const LocationAnalysis = ({ analysisResult, onBack }) => {
     navigate('/feedback', { state: { isCorrect: false } });
   };
 
-  // 예외 처리: analysisResult가 없는 경우
   if (!analysisResult) {
     return (
       <div style={styles.container}>
@@ -128,7 +128,6 @@ const LocationAnalysis = ({ analysisResult, onBack }) => {
     );
   }
 
-  // 예외 처리: 이미지 URL이 없는 경우
   if (!analysisResult.imageUrl) {
     return (
       <div style={styles.container}>
@@ -144,7 +143,11 @@ const LocationAnalysis = ({ analysisResult, onBack }) => {
   
   return (
     <div style={styles.container}>
-      {showModal && <ImageCountModal onClose={() => setShowModal(false)} />}
+      {showModal && (<ImageCountModal 
+          onClose={() => setShowModal(false)} 
+          firstImageFile={firstImageFile}
+        />
+      )}
       
       <div style={styles.imageCard}>
         <img 

@@ -1,11 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import LocationAnalysis from './LocationAnalysis';
-
-const API_CONFIG = {
-  MODEL: "gpt-4o",
-  MAX_TOKENS: 300,
-  ENDPOINT: 'https://api.openai.com/v1/chat/completions'
-};
+import '../styles/Home.css';
 
 const ERROR_MESSAGES = {
   API_KEY_MISSING: '현재 서비스 준비중입니다',
@@ -17,84 +12,20 @@ const ERROR_MESSAGES = {
   NO_FILE: '사진을 먼저 선택해주세요.'
 };
 
-const compressImage = (file, maxWidth = 800, quality = 0.8) => {
-  return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = () => {
-      const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
-      canvas.width = img.width * ratio;
-      canvas.height = img.height * ratio;
-      
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(resolve, 'image/jpeg', quality);
-    };
-    
-    img.src = URL.createObjectURL(file);
-  });
-};
 
-const convertToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
+const analyzeImageWithAPI = async (file) => {
+  const API_URL = process.env.REACT_APP_API_URL;
+  const formData = new FormData();
+  formData.append('file', file);
 
-const analyzeImageWithAPI = async (base64Image) => {
-  const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
-  
-  if (!apiKey) {
-    throw new Error('API_KEY_MISSING');
-  }
-
-  const requestBody = {
-    model: API_CONFIG.MODEL,
-    messages: [{
-      role: "user",
-      content: [{
-        type: "text",
-        text: "이 여행 사진을 보고 촬영된 국가와 도시를 추론하고 한글로 주세요. 응답은 반드시 다음 JSON 형식으로만 해주세요. 마크다운이나 다른 형식은 사용하지 마세요: {\"country\": \"국가명\", \"city\": \"도시명\", \"confidence\": \"신뢰도(1-10)\"}"
-      }, {
-        type: "image_url",
-        image_url: { url: base64Image }
-      }]
-    }],
-    max_tokens: API_CONFIG.MAX_TOKENS
-  };
-
-  const response = await fetch(API_CONFIG.ENDPOINT, {
+  const res = await fetch(`${API_URL}/api/analyze`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify(requestBody)
+    body: formData
   });
 
-  if (!response.ok) {
-    const status = response.status;
-    if (status === 401) throw new Error('API_KEY_INVALID');
-    if (status === 429) throw new Error('API_RATE_LIMIT');
-    throw new Error('API_ERROR');
-  }
-
-  const data = await response.json();
-  const content = data.choices[0].message.content;
-  
-  try {
-    const result = JSON.parse(content);
-    if (!result.country || !result.city) {
-      throw new Error('INVALID_RESPONSE');
-    }
-    return result;
-  } catch {
-    throw new Error('PARSE_ERROR');
-  }
+  const result = await res.json();
+  console.log(result);
+  return result;
 };
 
 const Home = () => {
@@ -280,14 +211,13 @@ const Home = () => {
     setError(null);
 
     try {
-      const compressedFile = await compressImage(files[0]);
-      const base64Image = await convertToBase64(compressedFile);
-      
-      const result = await analyzeImageWithAPI(base64Image);
+
+      const result = await analyzeImageWithAPI(files[0]);
       
       setAnalysisResult({
         ...result,
-        imageUrl: URL.createObjectURL(files[0])
+        imageUrl: URL.createObjectURL(files[0]),
+        firstImageFile: files[0],
       });
     } catch (error) {
       const errorMessage = ERROR_MESSAGES[error.message] || ERROR_MESSAGES.API_ERROR;

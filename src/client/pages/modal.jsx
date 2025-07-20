@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const ImageCountModal = ({ onClose }) => {
+const ImageCountModal = ({ onClose, firstImageFile }) => {
   const navigate = useNavigate();
 
   const styles = {
@@ -68,8 +68,13 @@ const ImageCountModal = ({ onClose }) => {
   };
 
   const handleImageCount = (count) => {
-    navigate('/create', { state: { imageCount: count } });
-  };
+  navigate('/create', {
+    state: {
+      imageCount: count,
+      firstImageFile: firstImageFile,
+    },
+  });
+};
 
   return (
     <div style={styles.overlay} onClick={onClose}>

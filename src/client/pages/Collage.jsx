@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import CollageGrid from '../components/CollageGrid';
 import AnalysisCard from '../components/AnalysisCard';
 import '../styles/Collage.css';
@@ -6,14 +7,16 @@ import Indicator from '../components/Indicator';
 import html2canvas from 'html2canvas';
 
 const Collage = () => {
+  const location = useLocation();
+  const collageImages = location.state?.collageImages || [];
+
   const [page, setPage] = useState(0);
   const totalPages = 2;
   const touchStartX = useRef(null);
 
   const handleSave = () => {
     const collageElement = document.querySelector('.collage-grid');
-
-    html2canvas(collageElement).then(canvas => {
+    html2canvas(collageElement).then((canvas) => {
       const link = document.createElement('a');
       link.download = 'tripon_collage.png';
       link.href = canvas.toDataURL();
@@ -30,7 +33,7 @@ const Collage = () => {
         await navigator.share({
           files: [file],
           title: 'TRIP:ON 여행 네컷',
-          text: '여행 네컷을 확인해보세요요',
+          text: '여행 네컷을 확인해보세요',
         });
       } else {
         alert('공유를 지원하지 않는 브라우저입니다.');
@@ -51,27 +54,31 @@ const Collage = () => {
   };
 
   return (
-    <div 
-      className="collage-container" 
+    <div
+      className="collage-container"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       <img src="/asset/logo.png" alt="logo" className="logo" />
 
       <div className="collage-wrapper">
-        {page === 0 ? <CollageGrid page={page} /> : <AnalysisCard />}
+        {page === 0 ? (
+          <CollageGrid images={collageImages} />
+        ) : (
+          <AnalysisCard />
+        )}
         <Indicator total={totalPages} current={page} onClick={setPage} />
       </div>
 
       <div className="collage-controls">
         <button onClick={handleSave}>
-          <img src="/asset/download.png" alt="download" className='download' />
+          <img src="/asset/download.png" alt="download" className="download" />
         </button>
         <button onClick={handleShare}>
-          <img src="/asset/kakao.png" alt="kakao" className='kakao' />
+          <img src="/asset/kakao.png" alt="kakao" className="kakao" />
         </button>
         <button onClick={handleShare}>
-          <img src="/asset/instagram.png" alt="instagram" className='instagram' />
+          <img src="/asset/instagram.png" alt="instagram" className="instagram" />
         </button>
       </div>
     </div>
