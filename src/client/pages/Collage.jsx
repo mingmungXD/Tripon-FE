@@ -16,6 +16,7 @@ const Collage = () => {
 
   const handleSave = () => {
     const collageElement = document.querySelector('.collage-grid');
+    console.log(document.querySelector('.collage-grid')); 
     html2canvas(collageElement).then((canvas) => {
       const link = document.createElement('a');
       link.download = 'tripon_collage.png';
